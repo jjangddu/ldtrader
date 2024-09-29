@@ -8,19 +8,20 @@ import torch
 
 import pandas_datareader.data as web
 
+import data_manager
 
 if __name__ == '__main__':
 
     #입력값 파싱 - mode, 이름, 주식코드, 강화학습법, 시작과 끝 날짜, 학습률, discount factor
     parser = argparse.ArgumentParser()
-    parser.add_argument('mode:',choices=['train', 'test', 'update', 'predict'], default='train')
-    parser.add_argument('name:',default='test')
-    parser.add_argument('stock_code:',nargs='+')
-    parser.add_argument('rl_method:', choices=['dqn', 'pg', 'ac', 'a2c', 'a3c', 'monkey'],default='dqn')
-    parser.add_argument('start_date:',default=20200101)
-    parser.add_argument('end_date:',default=20211231)
-    parser.add_argument('lr:',type=float,default=0.0001)
-    parser.add_argument('discount_factor:',type=float,default=0.7)
+    parser.add_argument('mode-',choices=['train', 'test', 'update', 'predict'], default='train')
+    parser.add_argument('name-',default='test')
+    parser.add_argument('stock_code-',nargs='+')
+    parser.add_argument('rl_method-', choices=['dqn', 'pg', 'ac', 'a2c', 'a3c', 'monkey'],default='dqn')
+    parser.add_argument('start_date-',default=20200101)
+    parser.add_argument('end_date-',default=20211231)
+    parser.add_argument('lr-',type=float,default=0.0001)
+    parser.add_argument('discount_factor-',type=float,default=0.7)
     args = parser.parse_args()
 
 
@@ -60,13 +61,18 @@ if __name__ == '__main__':
     logger.info(params)
 
     #강화학습 모듈 임포트. Reinforcementlearner,DQNLearner 등 임포트함
-
+    from learner import DQNLearner, A2CLearner
 
     #차트 데이터 받아오기(data_manager 이용)
-
+    X_train, X_test, y_train, y_test = data_manager.preprocessing()
 
     #강화학습 시작
+    if args.rl_method == 'dqn':
+        learner = DQNLearner(X_train, y_train, X_test, y_test)
+    elif args.rl_method == 'a2c':
+        learner = A2CLearner(X_train, y_train, X_test, y_test)
 
+    learner.train(num_epoches)
 
 
 
