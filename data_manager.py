@@ -8,11 +8,10 @@ import numpy as np
 
 from sklearn.preprocessing import MinMaxScaler
 
-
 def preprocessing():
     name = 'AAPL'
     df = pd.read_csv(f'csvfolder/{name}.csv', parse_dates=['Date'], index_col='Date')
-    df = df.fillna(method='ffill')  # 결측치를 앞의 값으로 채움
+    df = df.ffill()  # 경고 수정
 
     scaler = MinMaxScaler(feature_range=(0, 1))
     scaled_data = scaler.fit_transform(df[['Open', 'High', 'Low', 'Close', 'Volume']])
@@ -30,6 +29,12 @@ def preprocessing():
     train_size = int(len(X) * 0.8)
     X_train, X_test = X[:train_size], X[train_size:]
     y_train, y_test = y[:train_size], y[train_size:]
+
+    # 데이터 형식 확인
+    print("X_train shape:", X_train.shape)
+    print("y_train shape:", y_train.shape)
+    print("X_test shape:", X_test.shape)
+    print("y_test shape:", y_test.shape)
 
     return X_train, X_test, y_train, y_test
 
