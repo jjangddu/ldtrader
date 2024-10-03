@@ -60,7 +60,9 @@ consumer_sentiment = fred.get_series('UMCSENT', start='2020-01-01', end='2023-10
 # Reindex the consumer sentiment data to match the stock data index and forward fill missing values
 data['Consumer_Sentiment'] = consumer_sentiment.reindex(data.index, method='ffill')
 
-# 10. Save to CSV
+
+# 10. Fill NaN values with 0 and save to CSV
+data.fillna(0, inplace=True)
 data.to_csv('coca_cola_stock_with_moving_averages.csv')
 
 # Display the last few rows of the dataset
