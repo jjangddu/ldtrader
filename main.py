@@ -7,6 +7,7 @@ import json
 rl_method = 'dqn'
 network = 'lstm'
 backend = 'pytorch'
+balance = 100000000
 
 if __name__ == '__main__':
     #input Command Line Arguments
@@ -17,7 +18,6 @@ if __name__ == '__main__':
     parser.add_argument('--end', default='20201231')
     parser.add_argument('--learning_rate', type=float, default=0.001)
     parser.add_argument('--discount_factor', type=float, default=0.7)
-    parser.add_argument('--balance', type=int, default=100000000)
     args = parser.parse_args()
 
     #parameter setting
@@ -62,11 +62,40 @@ if __name__ == '__main__':
     logger.addHandler(file_handler)
     logger.info(params)
 
-
-
     common_params = {}
     list_stock_code = []
     list_chart_data = []
     list_training_data = []
     list_min_trading_price = []
     list_max_trading_price = []
+
+    # Todo sync with jjangddu 
+    chart_data, training_data = data_manager.load_data()
+    assert len(chart_data) >= num_steps
+
+    min_trading_price = 1000000
+    max_trading_price = 100000000
+
+    common_params =  {'rl_method': rl_method, 
+            'network': network, 'num_steps': num_steps, 'learning_rate': args.learning_rate,
+            'balance': balance, 'num_epoches': num_epoches, 
+            'discount_factor': args.discount_factor, 'start_epsilon': start_epsilon,
+            'output_path': output_path, 'reuse_model': reuse_model}
+    
+    common_params.update({'stock_code': args.stock_code,
+                'chart_data': chart_data, 
+                'training_data': training_data,
+                'min_trading_price': min_trading_price, 
+                'max_trading_price': max_trading_price})
+    
+    learner = DQNLearner(**{**common_params, 
+                    'value_network_path': value_network_path})
+    
+    assert learner is not None
+
+    if args.mode in ['train', 'test', 'update']:
+      learner.run(learning=is_learning)
+      if args.mode in ['train', 'update']:
+          learner.save_models()
+    elif args.mode == 'predict':
+        learner.predict()
