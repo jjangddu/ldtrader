@@ -83,15 +83,6 @@ class Network:
             loss += _loss.item()
         return loss
 
-    @classmethod
-    def get_shared_network(cls, net='dnn', num_steps=1, input_dim=0, output_dim=0):
-        if net == 'dnn':
-            return DNN.get_network_head((input_dim,), output_dim)
-        elif net == 'lstm':
-            return LSTMNetwork.get_network_head((num_steps, input_dim), output_dim)
-        elif net == 'cnn':
-            return CNN.get_network_head((num_steps, input_dim), output_dim)
-
     @abc.abstractmethod
     def get_network_head(inp, output_dim):
         pass

@@ -7,12 +7,12 @@ import time
 import json
 import numpy as np # type: ignore
 from tqdm import tqdm # type: ignore
-# from src.quantylab.rltrader.environment import Environment
-# from src.quantylab.rltrader.agent import Agent
-# from src.quantylab.rltrader.networks import Network, DNN, LSTMNetwork, CNN
-# from src.quantylab.rltrader.visualizer import Visualizer
-# from src.quantylab.rltrader import utils
-# from src.quantylab.rltrader import settings
+
+from agent import Agent
+from environment import Environment
+from network import LSTMNetwork
+
+logger = logging.getLogger('ldtrader')
 
 
 class ReinforcementLearner:
@@ -60,7 +60,7 @@ class ReinforcementLearner:
     self.policy_network = policy_network
     self.reuse_models = reuse_models
     # 가시화 모듈
-    self.visualizer = Visualizer()
+    # self.visualizer = Visualizer()
     # 메모리
     self.memory_sample = []
     self.memory_action = []

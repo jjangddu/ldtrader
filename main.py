@@ -3,6 +3,7 @@ import os
 import logging
 import sys
 import json
+from model import DQNLearner
 
 rl_method = 'dqn'
 network = 'lstm'
@@ -51,7 +52,7 @@ if __name__ == '__main__':
     if os.path.exists(log_path):
         os.remove(log_path)
     logging.basicConfig(format='%(message)s')
-    logger = logging.getLogger()
+    logger = logging.getLogger('ldtrader')
     logger.setLevel(logging.DEBUG)
     logger.propagate = False
     stream_handler = logging.StreamHandler(sys.stdout)
@@ -70,7 +71,8 @@ if __name__ == '__main__':
     list_max_trading_price = []
 
     # Todo sync with jjangddu 
-    chart_data, training_data = data_manager.load_data()
+    # chart_data, training_data = data_manager.load_data()
+    chart_data, training_data = [] ,[]
     assert len(chart_data) >= num_steps
 
     min_trading_price = 1000000
