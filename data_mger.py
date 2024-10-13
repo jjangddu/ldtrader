@@ -1,42 +1,53 @@
+# data_manager.py
+
 import pandas as pd
-import numpy as np
 
-def preprocess_stock_data(data):
-    # 이동 평균 계산에 사용할 윈도우 크기
-    windows = [5, 10, 20, 60, 120]
+def load_data(file_path):
+    """
+    Load stock data from a CSV file.
 
-    # 이동 평균 계산 및 비율 계산
-    for window in windows:
-        data[f'close_ma{window}'] = data['close'].rolling(window).mean()
-        data[f'volume_ma{window}'] = data['volume'].rolling(window).mean()
-        data[f'close_ma{window}_ratio'] = \
-            (data['close'] - data[f'close_ma{window}']) / data[f'close_ma{window}']
-        data[f'volume_ma{window}_ratio'] = \
-            (data['volume'] - data[f'volume_ma{window}']) / data[f'volume_ma{window}']
+    Args:
+        file_path (str): The path to the CSV file containing the stock data.
 
-    # 추가적인 비율 데이터 계산
-    data['open_lastclose_ratio'] = np.zeros(len(data))
-    data.loc[1:, 'open_lastclose_ratio'] = \
-        (data['open'][1:].values - data['close'][:-1].values) / data['close'][:-1].values
-    data['high_close_ratio'] = (data['high'].values - data['close'].values) / data['close'].values
-    data['low_close_ratio'] = (data['low'].values - data['close'].values) / data['close'].values
-    data['close_lastclose_ratio'] = np.zeros(len(data))
-    data.loc[1:, 'close_lastclose_ratio'] = \
-        (data['close'][1:].values - data['close'][:-1].values) / data['close'][:-1].values
-    data['volume_lastvolume_ratio'] = np.zeros(len(data))
-    data.loc[1:, 'volume_lastvolume_ratio'] = (
-        (data['volume'][1:].values - data['volume'][:-1].values)
-        / data['volume'][:-1].replace(to_replace=0, method='ffill')\
-            .replace(to_replace=0, method='bfill').values
-    )
+    Returns:
+        pd.DataFrame: The loaded data as a pandas DataFrame.
+    """
+    data = pd.read_csv(file_path, index_col=0, parse_dates=True)
+    chart_data, train_data = preprocess_data(data)
+    return chart_data, train_data
 
-    # 차트 데이터 (필요한 열만 선택)
-    chart_data = data[['date', 'open', 'high', 'low', 'close', 'volume']]
+def preprocess_data(data):
+    """
+    Preprocess the stock data for reinforcement learning.
 
-    # 학습 데이터 (계산된 모든 비율 데이터 포함)
-    training_data = data[['open_lastclose_ratio', 'high_close_ratio', 'low_close_ratio',
-                          'close_lastclose_ratio', 'volume_lastvolume_ratio'] +
-                         [f'close_ma{window}_ratio' for window in windows] +
-                         [f'volume_ma{window}_ratio' for window in windows]]
+    Args:
+        data (pd.DataFrame): The raw stock data.
+
+    Returns:
+        pd.DataFrame, pd.DataFrame: The processed chart data and training data.
+    """
+    # Ensure all necessary columns are present
+    required_columns = [
+        'Open', 'High', 'Low', 'Close', 'Volume',
+        'Open_SMA_5', 'Open_SMA_10', 'Open_SMA_20', 'Open_SMA_60', 'Open_SMA_120',
+        'Close_SMA_5', 'Close_SMA_10', 'Close_SMA_20', 'Close_SMA_60', 'Close_SMA_120',
+        'High_SMA_5', 'High_SMA_10', 'High_SMA_20', 'High_SMA_60', 'High_SMA_120',
+        'Low_SMA_5', 'Low_SMA_10', 'Low_SMA_20', 'Low_SMA_60', 'Low_SMA_120',
+        'Volume_SMA_5', 'Volume_SMA_10', 'Volume_SMA_20', 'Volume_SMA_60', 'Volume_SMA_120',
+        'RSI_14', 'MACD', 'BB_Middle', 'BB_Upper', 'BB_Lower', 'OBV',
+        'Dividends', 'Splits', 'Interest_Rate', 'Inflation_Rate', 'Consumer_Sentiment'
+    ]
+    for col in required_columns:
+        if col not in data.columns:
+            raise ValueError(f'Missing required column: {col}')
+
+    # Fill any remaining NaNs in the dataset
+    data.fillna(0, inplace=True)
+
+    # Chart data contains basic stock information for each day
+    chart_data = data[['Open', 'High', 'Low', 'Close', 'Volume']]
+
+    # Training data contains the additional features
+    training_data = data.drop(columns=['Open', 'High', 'Low', 'Close', 'Volume'])
 
     return chart_data, training_data
