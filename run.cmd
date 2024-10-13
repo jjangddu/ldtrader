@@ -1,0 +1,1 @@
+python3 main.py --mode train --stock_code 112 --start 20180101 --end 20191231
