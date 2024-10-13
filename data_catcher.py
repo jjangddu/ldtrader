@@ -1,9 +1,10 @@
 import yfinance as yf
 import pandas as pd
 import numpy as np
+from sklearn.preprocessing import MinMaxScaler # type: ignore
 
-from fredapi import Fred
-import quandl
+from fredapi import Fred # type: ignore
+import quandl # type: ignore
 
 
 # API Key 설정
@@ -12,15 +13,18 @@ quandl.ApiConfig.api_key = 'fhQeYFfw5WtD9NxS97Hi'
 
 # 1. Fetch Coca-Cola stock data
 ticker = 'KO'
-data = yf.download(ticker, start='2020-01-01', end='2023-10-01')
+data = yf.download(ticker, start='2020-01-01', end='2024-10-01')
 
 # 2. Calculate Moving Averages for Open, Close, High, Low, Volume
-for col in ['Open', 'Close', 'High', 'Low', 'Volume']:
-    data[f'{col}_SMA_5'] = data[col].rolling(window=5).mean()
-    data[f'{col}_SMA_10'] = data[col].rolling(window=10).mean()
-    data[f'{col}_SMA_20'] = data[col].rolling(window=20).mean()
-    data[f'{col}_SMA_60'] = data[col].rolling(window=60).mean()
-    data[f'{col}_SMA_120'] = data[col].rolling(window=120).mean()
+# for col in ['Open', 'Close', 'High', 'Low', 'Volume']:
+for col in ['Close']:
+    data[f'ratio_to_{col}_MA_5'] = data[col] / data[col].rolling(window=5).mean()
+    data[f'ratio_to_{col}_MA_10'] = data[col] / data[col].rolling(window=10).mean()
+    data[f'ratio_to_{col}_MA_20'] = data[col] / data[col].rolling(window=20).mean()
+    data[f'ratio_to_{col}_MA_60'] = data[col] / data[col].rolling(window=60).mean()
+    data[f'ratio_to_{col}_MA_120'] = data[col] / data[col].rolling(window=120).mean()
+
+scaler = MinMaxScaler()
 
 # 3. Calculate RSI (Relative Strength Index)
 delta = data['Close'].diff(1)
@@ -44,21 +48,41 @@ data['BB_Lower'] = data['BB_Middle'] - (data['Close'].rolling(window=20).std() *
 # 6. Calculate OBV (On-Balance Volume)
 data['OBV'] = (np.sign(data['Close'].diff()) * data['Volume']).fillna(0).cumsum()
 
-# 7. Add Dividends and Splits
-dividends = yf.Ticker(ticker).dividends
-splits = yf.Ticker(ticker).splits
-data['Dividends'] = dividends.reindex(data.index, fill_value=0)
-data['Splits'] = splits.reindex(data.index, fill_value=0)
+# # 7. Add Dividends and Splits
+# dividends = yf.Ticker(ticker).dividends
+# splits = yf.Ticker(ticker).splits
+# data['Dividends'] = dividends.reindex(data.index, fill_value=0)
+# data['Splits'] = splits.reindex(data.index, fill_value=0)
 
-# 8. Fetch Economic Indicators from FRED (Interest Rate, Inflation Rate)
-fred = Fred(api_key=FRED_API_KEY)
-data['Interest_Rate'] = fred.get_series('FEDFUNDS', start='2020-01-01', end='2023-10-01').reindex(data.index, method='ffill')
-data['Inflation_Rate'] = fred.get_series('CPIAUCSL', start='2020-01-01', end='2023-10-01').pct_change().reindex(data.index, method='ffill')
+# # 8. Fetch Economic Indicators from FRED (Interest Rate, Inflation Rate)
+# fred = Fred(api_key=FRED_API_KEY)
+# data['Interest_Rate'] = fred.get_series('FEDFUNDS', start='2020-01-01', end='2023-10-01').reindex(data.index, method='ffill')
+# data['Inflation_Rate'] = fred.get_series('CPIAUCSL', start='2020-01-01', end='2023-10-01').pct_change().reindex(data.index, method='ffill')
 
-# 9. Fetch Consumer Sentiment Index from Fred
-consumer_sentiment = fred.get_series('UMCSENT', start='2020-01-01', end='2023-10-01')
-# Reindex the consumer sentiment data to match the stock data index and forward fill missing values
-data['Consumer_Sentiment'] = consumer_sentiment.reindex(data.index, method='ffill')
+# # 9. Fetch Consumer Sentiment Index from Fred
+# consumer_sentiment = fred.get_series('UMCSENT', start='2020-01-01', end='2023-10-01')
+# # Reindex the consumer sentiment data to match the stock data index and forward fill missing values
+# data['Consumer_Sentiment'] = consumer_sentiment.reindex(data.index, method='ffill')
+
+data[['RSI_14', 'MACD', 'BB_Middle', 'BB_Upper', 'BB_Lower', 'OBV']] = scaler.fit_transform(
+    data[['RSI_14', 'MACD', 'BB_Middle', 'BB_Upper', 'BB_Lower', 'OBV']]
+)
+
+# 이전 종가, 거래량 저장
+data['Last_Close'] = data['Close'].shift(1)
+data['Last_Volume'] = data['Volume'].shift(1)
+
+# 비율 계산
+data['open_lastclose_ratio'] = (data['Open'] - data['Last_Close']) / data['Last_Close']
+data['high_close_ratio'] = (data['High'] - data['Close']) / data['Close']
+data['low_close_ratio'] = (data['Low'] - data['Close']) / data['Close']
+data['close_lastclose_ratio'] = (data['Close'] - data['Last_Close']) / data['Last_Close']
+# data['volume_lastvolume_ratio'] = (data['Volume'] - data['Last_Volume']) / data['Last_Volume']
+
+data.drop(columns=['Adj Close', 'Last_Close', 'Last_Volume'], inplace=True)
+
+# NaN 처리 (첫 번째 행의 경우)
+data.fillna(0, inplace=True)
 
 
 # 10. Fill NaN values with 0 and save to CSV

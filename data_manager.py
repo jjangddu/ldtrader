@@ -1,40 +1,85 @@
-#주가데이터를 받아오고 전처리하는 함수
-#yfinance or pandas_datareader를 이용해서 주가데이터를 받아옴
-#아니면 이미 있는 csv 나 json 파일에서 받아옴
-#입력 인자로는 stock code, start date, end date가 있음
+# data_manager.py
 
 import pandas as pd
-import numpy as np
 
-from sklearn.preprocessing import MinMaxScaler
+def load_data(file_path, start_date=None, end_date=None):
+    """
+    Load stock data from a CSV file within a specified date range.
 
-def preprocessing():
-    name = 'AAPL'
-    df = pd.read_csv(f'csvfolder/{name}.csv', parse_dates=['Date'], index_col='Date')
-    df = df.ffill()  # 경고 수정
+    Args:
+        file_path (str): The path to the CSV file containing the stock data.
+        start_date (str): The start date for filtering the data (format: 'YYYY-MM-DD').
+        end_date (str): The end date for filtering the data (format: 'YYYY-MM-DD').
 
-    scaler = MinMaxScaler(feature_range=(0, 1))
-    scaled_data = scaler.fit_transform(df[['Open', 'High', 'Low', 'Close', 'Volume']])
+    Returns:
+        pd.DataFrame: The loaded data as a pandas DataFrame.
+    """
+    data = pd.read_csv(file_path, index_col=0, parse_dates=True)
+    
+    # Filter data by date range if specified
+    if start_date:
+        data = data[data.index >= start_date]
+    if end_date:
+        data = data[data.index <= end_date]
+    
+    chart_data, train_data = preprocess_data(data)
+    return chart_data, train_data
 
-    def create_sequences(data, sequence_length):
-        sequences = []
-        for i in range(len(data) - sequence_length):
-            sequences.append(data[i:i + sequence_length])
-        return np.array(sequences)
+def preprocess_data(data):
+    """
+    Preprocess the stock data for reinforcement learning.
 
-    sequence_length = 60  # 60일 치 데이터를 사용해 예측
-    X = create_sequences(scaled_data, sequence_length)
-    y = scaled_data[sequence_length:, 3]  # 종가(Close)를 예측
+    Args:
+        data (pd.DataFrame): The raw stock data.
 
-    train_size = int(len(X) * 0.8)
-    X_train, X_test = X[:train_size], X[train_size:]
-    y_train, y_test = y[:train_size], y[train_size:]
+    Returns:
+        pd.DataFrame, pd.DataFrame: The processed chart data and training data.
+    """
+    # Ensure all necessary columns are present
+    # required_columns = [
+    #     'Open', 'High', 'Low', 'Close', 'Volume',
+    #     'Open_SMA_5', 'Open_SMA_10', 'Open_SMA_20', 'Open_SMA_60', 'Open_SMA_120',
+    #     'Close_SMA_5', 'Close_SMA_10', 'Close_SMA_20', 'Close_SMA_60', 'Close_SMA_120',
+    #     'High_SMA_5', 'High_SMA_10', 'High_SMA_20', 'High_SMA_60', 'High_SMA_120',
+    #     'Low_SMA_5', 'Low_SMA_10', 'Low_SMA_20', 'Low_SMA_60', 'Low_SMA_120',
+    #     'Volume_SMA_5', 'Volume_SMA_10', 'Volume_SMA_20', 'Volume_SMA_60', 'Volume_SMA_120',
+    #     'RSI_14', 'MACD', 'BB_Middle', 'BB_Upper', 'BB_Lower', 'OBV',
+    #     'Dividends', 'Splits', 'Interest_Rate', 'Inflation_Rate', 'Consumer_Sentiment'
+    # ]
+    required_columns = [
+        'Open',
+        'High',
+        'Low',
+        'Close',
+        'Volume',
+        'ratio_to_Close_MA_5',
+        'ratio_to_Close_MA_10',
+        'ratio_to_Close_MA_20',
+        'ratio_to_Close_MA_60',
+        'ratio_to_Close_MA_120',
+        'RSI_14',
+        'MACD',
+        'BB_Middle',
+        'BB_Upper',
+        'BB_Lower',
+        'OBV',
+        'open_lastclose_ratio',
+        'high_close_ratio',
+        'low_close_ratio',
+        'close_lastclose_ratio',
+    ]
 
-    # 데이터 형식 확인
-    print("X_train shape:", X_train.shape)
-    print("y_train shape:", y_train.shape)
-    print("X_test shape:", X_test.shape)
-    print("y_test shape:", y_test.shape)
+    for col in required_columns:
+        if col not in data.columns:
+            raise ValueError(f'Missing required column: {col}')
 
-    return X_train, X_test, y_train, y_test
+    # Fill any remaining NaNs in the dataset
+    data.fillna(0, inplace=True)
 
+    # Chart data contains basic stock information for each day
+    chart_data = data[['Open', 'High', 'Low', 'Close', 'Volume']]
+
+    # Training data contains the additional features
+    training_data = data.drop(columns=['Open', 'High', 'Low', 'Close', 'Volume'])
+
+    return chart_data, training_data

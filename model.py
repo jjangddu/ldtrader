@@ -59,8 +59,6 @@ class ReinforcementLearner:
     self.value_network = value_network
     self.policy_network = policy_network
     self.reuse_models = reuse_models
-    # 가시화 모듈
-    # self.visualizer = Visualizer()
     # 메모리
     self.memory_sample = []
     self.memory_action = []
@@ -113,8 +111,6 @@ class ReinforcementLearner:
       self.environment.reset()
       # 에이전트 초기화
       self.agent.reset()
-      # 가시화 초기화
-      self.visualizer.clear([0, len(self.chart_data)])
       # 메모리 초기화
       self.memory_sample = []
       self.memory_action = []
@@ -129,14 +125,15 @@ class ReinforcementLearner:
       self.itr_cnt = 0
       self.exploration_cnt = 0
       self.batch_size = 0
+      print("reset")
 
   def build_sample(self):
       self.environment.observe()
       if len(self.training_data) > self.training_data_idx + 1:
-          self.training_data_idx += 1
-          self.sample = self.training_data[self.training_data_idx].tolist()
-          self.sample.extend(self.agent.get_states())
-          return self.sample
+            self.training_data_idx += 1
+            self.sample = self.training_data.iloc[self.training_data_idx].tolist()  # 현재 인덱스의 데이터를 리스트로 변환
+            self.sample.extend(self.agent.get_states())  # 에이전트의 상태를 샘플에 추가
+            return self.sample  # 샘플 반환
       return None
 
   @abc.abstractmethod
@@ -158,29 +155,6 @@ class ReinforcementLearner:
               loss += self.policy_network.train_on_batch(x, y_policy)
           self.loss = loss
 
-  def visualize(self, epoch_str, num_epoches, epsilon):
-      self.memory_action = [Agent.ACTION_HOLD] * (self.num_steps - 1) + self.memory_action
-      self.memory_num_stocks = [0] * (self.num_steps - 1) + self.memory_num_stocks
-      if self.value_network is not None:
-          self.memory_value = [np.array([np.nan] * len(Agent.ACTIONS))] \
-                              * (self.num_steps - 1) + self.memory_value
-      if self.policy_network is not None:
-          self.memory_policy = [np.array([np.nan] * len(Agent.ACTIONS))] \
-                              * (self.num_steps - 1) + self.memory_policy
-      self.memory_pv = [self.agent.initial_balance] * (self.num_steps - 1) + self.memory_pv
-      self.visualizer.plot(
-          epoch_str=epoch_str, num_epoches=num_epoches, 
-          epsilon=epsilon, action_list=Agent.ACTIONS, 
-          actions=self.memory_action, 
-          num_stocks=self.memory_num_stocks, 
-          outvals_value=self.memory_value, 
-          outvals_policy=self.memory_policy,
-          exps=self.memory_exp_idx, 
-          initial_balance=self.agent.initial_balance, 
-          pvs=self.memory_pv,
-      )
-      self.visualizer.save(os.path.join(self.epoch_summary_dir, f'epoch_summary_{epoch_str}.png'))
-
   def run(self, learning=True):
       info = (
           f'[{self.stock_code}] RL:{self.rl_method} NET:{self.net} '
@@ -191,19 +165,6 @@ class ReinforcementLearner:
 
       # 시작 시간
       time_start = time.time()
-
-      # 가시화 준비
-      # 차트 데이터는 변하지 않으므로 미리 가시화
-      self.visualizer.prepare(self.environment.chart_data, info)
-
-      # 가시화 결과 저장할 폴더 준비
-      if self.gen_output:
-          self.epoch_summary_dir = os.path.join(self.output_path, f'epoch_summary_{self.stock_code}')
-          if not os.path.isdir(self.epoch_summary_dir):
-              os.makedirs(self.epoch_summary_dir)
-          else:
-              for f in os.listdir(self.epoch_summary_dir):
-                  os.remove(os.path.join(self.epoch_summary_dir, f))
 
       # 학습에 대한 정보 초기화
       max_portfolio_value = 0
@@ -283,11 +244,6 @@ class ReinforcementLearner:
               f'#Buy:{self.agent.num_buy} #Sell:{self.agent.num_sell} #Hold:{self.agent.num_hold} '
               f'#Stocks:{self.agent.num_stocks} PV:{self.agent.portfolio_value:,.0f} '
               f'Loss:{self.loss:.6f} ET:{elapsed_time_epoch:.4f}')
-
-          # 에포크 관련 정보 가시화
-          if self.gen_output:
-              if self.num_epoches == 1 or (epoch + 1) % max(int(self.num_epoches / 10), 1) == 0:
-                  self.visualize(epoch_str, self.num_epoches, epsilon)
 
           # 학습 관련 정보 갱신
           max_portfolio_value = max(
