@@ -1,0 +1,8 @@
+{
+    "mode": "predict",
+    "stock_code": "KO",
+    "start": "20200101",
+    "end": "20201231",
+    "learning_rate": 0.001,
+    "discount_factor": 0.7
+}
